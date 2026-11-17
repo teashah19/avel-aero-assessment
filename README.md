@@ -1,73 +1,64 @@
-# avel-aero-assessment-
-# Avel Aero — Workflow Execution Engine
+# Avel Aero Workflow Engine
 
-## Overview
+A small workflow engine that handles a made-up private charter inquiry. It runs a finite state machine through four steps:
 
-This project implements a lightweight workflow execution engine for a fictional private charter inquiry. It uses a finite state machine (FSM) to coordinate four steps:
+1. Check aircraft availability
+2. Prepare a quote
+3. Wait for a human to approve it
+4. Send the quote (mocked)
 
-1. Check aircraft availability.
-2. Prepare a quote.
-3. Wait for human approval.
-4. Send the approved quote (mock operation).
+Everything external is simulated, so no real messages go out.
 
-All external services are simulated. No actual messages are sent.
+## How it works
 
-## Architecture
+The core is a `WorkflowEngine` class. It tracks where it is with a `WorkflowState` enum, and a transition map decides which moves are allowed. Alongside that it keeps:
 
-The workflow is managed by a `WorkflowEngine` class.
+- a shared dictionary so steps can pass results to each other
+- a timestamped history of what ran
+- a retry counter for temporary failures
+- an approval flag that gates the send step
 
-The engine uses an enumerated `WorkflowState` to track its current execution state. A transition map defines which state changes are permitted.
-
-The engine also maintains:
-- A shared data dictionary to pass results between workflow steps.
-- An execution history with timestamps.
-- A retry counter for temporary failures.
-- An approval flag to control sensitive actions.
-
-### Workflow sequence
+The happy path looks like this:
 
 `START → CHECK_AVAILABILITY → PREPARE_QUOTE → WAITING_APPROVAL → SEND_QUOTE → COMPLETE`
 
-A temporary availability failure triggers a retry. A rejected quote terminates the workflow in the `REJECTED` state.
+If the availability check fails temporarily, the engine retries. If the quote is rejected, the workflow ends in `REJECTED`.
 
-## Key Engineering Decision
+## Design choices
 
-I chose a finite state machine rather than executing a sequence of independent functions. This makes workflow progression explicit and allows transitions to be validated.
+I used a state machine instead of just calling a chain of functions, because it makes the progression explicit and lets the engine reject invalid transitions.
 
-I also implemented an approval guard in the sending function. The quote cannot be sent unless explicit human approval has been recorded.
+The send function also checks for approval itself. Even if something else in the code tries to skip ahead, a quote can't go out unless a human has approved it.
 
-## Failure Handling
+## Failure handling
 
-The availability tool simulates a temporary API timeout on the first attempt. The engine records the failure, transitions to a retry state, and attempts the availability check again.
+The mock availability tool times out on the first call on purpose. The engine logs the failure, moves into a retry state, and tries again. The max number of attempts is configurable.
 
-The maximum number of attempts is configurable.
+## Running it
 
-## How to Run
-
-Requires Python 3.
-
-Run the workflow:
+You need Python 3.
 
 ```bash
 python3 main.py
 ```
 
-Run automated tests:
+When prompted, type `yes` to approve the quote or `no` to reject it.
+
+To run the tests:
 
 ```bash
 python3 -m unittest -v test_workflow.py
 ```
 
-When prompted, enter `yes` to approve the quote or `no` to reject it.
-
 ## Tests
 
-Automated tests verify:
-- The initial workflow state.
-- Invalid state transitions are rejected.
-- Sending is blocked without approval.
-- Sending is permitted after approval.
+The tests cover:
+
+- the initial state
+- rejection of invalid transitions
+- sending being blocked without approval
+- sending working once approval is recorded
 
 ## Limitations
 
-This is a simulated execution engine. Aircraft availability, quote preparation, and message delivery use hardcoded responses rather than live external services. Workflow state is stored in memory and is not persisted between program executions.
+Availability, quotes, and message delivery all use hardcoded responses, not real services. State lives in memory only, so nothing is saved between runs.
