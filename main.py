@@ -68,17 +68,16 @@ class WorkflowEngine:
 
     # 4. Control state transitions
     def transition(self, new_state):
+        if new_state not in self.allowed_transitions[self.state]:
+            raise ValueError(
+                f"Invalid transition: {self.state.value} "
+                f"to {new_state.value}"
+            )
 
-    if new_state not in self.allowed_transitions[self.state]:
-        raise ValueError(
-            f"Invalid transition: {self.state.value} "
-            f"to {new_state.value}"
-        )
+        old_state = self.state
+        self.state = new_state
 
-    old_state = self.state
-    self.state = new_state
-
-    self.log(f"Transition: {old_state.value} -> {new_state.value}")
+        self.log(f"Transition: {old_state.value} -> {new_state.value}")
 
 
     # 5. Mock aircraft availability tool
